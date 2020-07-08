@@ -2,6 +2,85 @@
 # Build a Node.js Express app and deploy it to Azure as a Linux web app.
 # Add steps that analyze code, save build artifacts, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+provider "azurerm" {
+  version = "2.3.0"
+  features {}
+}
+ 
+resource "azurerm_resource_group" "rg" {
+  name     = "NodeJS-Teste"
+  location = "West US"
+}
+ 
+resource "azurerm_app_service_plan" "serviceplan" {
+  name                = "ASP-NodeJSTeste"
+  location            = "${azurerm_resource_group.rg.location}"
+  resource_group_name = "${azurerm_resource_group.rg.name}"
+  kind                = "app"
+ 
+  sku {
+    tier     = "free"
+    size     = "f1"
+    capacity = "1"
+  }
+}
+ 
+resource "azurerm_storage_account" "NodeJS-storage" {
+  name                     = "NodeJS-storage"
+  resource_group_name      = "${azurerm_resource_group.rg.name}"
+  location                 = "westus"
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+ 
+resource "azurerm_storage_container" "NodeJS-container" {
+  name                  = "NodeJS-container"
+  storage_account_name  = "${azurerm_storage_account.NodeJS-storage.name}"
+  container_access_type = "private"
+}
+ 
+resource "azurerm_storage_blob" "NodeJS-sb" {
+  name                   = "NodeJS-Testeblob"
+  storage_account_name   = "${azurerm_storage_account.NodeJS-storage.name}"
+  storage_container_name = "${azurerm_storage_container.NodeJS-container.name}"
+ 
+  type = "Page"
+  size = 5120
+}
+ 
+resource "azurerm_application_insights" "ai" {
+  name                = "NodeJS-AI"
+  location            = "West US"
+  resource_group_name = "${azurerm_resource_group.rg.name}"
+  application_type    = "web"
+}
+ 
+#Function Email Recusa
+resource "azurerm_function_app" "function" {
+  name                      = "NodeJS-function"
+  resource_group_name       = "${azurerm_resource_group.rg.name}"
+  location                  = "West US"
+  app_service_plan_id       = "${azurerm_app_service_plan.serviceplan.id}"
+  version                   = "~3"
+  https_only                = "true"
+  storage_connection_string = "${azurerm_storage_account.NodeJS-storage.id}"
+ 
+  site_config {
+    always_on = false
+  }
+ 
+}
+ 
+resource "azurerm_monitor_action_group" "action" {
+  name                = "NodeJS-actiongroup"
+  resource_group_name = "${azurerm_resource_group.rg.name}"
+  short_name          = "alerta1"
+ 
+  email_receiver {
+    name          = "emailparaalerta"
+    email_address = "teste@max.com.br"
+  }
+}
 
 trigger:
 - master
